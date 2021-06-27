@@ -5,6 +5,8 @@
 #include <windows.h>
 #include <glut.h>
 
+#include "1605078_classes.h"
+
 #define pi (2*acos(0.0))
 #define UP 1
 #define RIGHT 2
@@ -18,32 +20,16 @@ int drawaxes;
 double angle;
 
 double rotate_angle;
-double q_angle;
-double e_angle;
-double a_angle;
-double d_angle;
-double angle_inc;
 
-double plane_dist;
-double plane_len;
+Data environmentData;
 
-double big_rad;
-double small_rad;
-double cylinder_len;
-double header_len;
-
-struct point
+/*struct point
 {
 	double x,y,z;
-};
+};*/
 
 struct point pos;
 struct point u, r, l;
-struct point gun_l;
-
-int bullet_count, max_bullets;
-struct point bullets[100];
-
 
 void drawAxes()
 {
@@ -89,12 +75,21 @@ void drawGrid()
 
 void drawSquare(double a)
 {
-    //glColor3f(1.0,0.0,0.0);
+	//glColor3f(1.0,0.0,0.0);
 	glBegin(GL_QUADS);{
-		glVertex3f( a, 0, a);
-		glVertex3f( a, 0, -a);
-		glVertex3f(-a, 0, -a);
-		glVertex3f(-a, 0, a);
+		glVertex3f( a, a, 0);
+		glVertex3f( a, -a, 0);
+		glVertex3f(-a, -a, 0);
+		glVertex3f(-a, a, 0);
+	}glEnd();
+}
+
+void drawTriangle(struct point a, struct point b, struct point c) {
+	//glColor3f(1.0,0.0,0.0);
+	glBegin(GL_TRIANGLES);{
+		glVertex3f(a.x, a.y, a.z);
+		glVertex3f(b.x, b.y, b.z);
+		glVertex3f(c.x, c.y, c.z);
 	}glEnd();
 }
 
@@ -102,7 +97,7 @@ void drawCircle(double radius,int segments)
 {
     int i;
     struct point points[100];
-    glColor3f(0.7,0.7,0.7);
+    //glColor3f(0.7,0.7,0.7);
     //generate points
     for(i=0;i<=segments;i++)
     {
@@ -166,8 +161,8 @@ void drawSphere(double radius,int slices,int stacks)
 			//points[i][j].y=r*sin(((double)j/(double)slices)*2*pi);
 			//points[i][j].z=h;
 			points[i][j].x=r*cos(((double)j/(double)slices)*2*pi);
-			points[i][j].z=r*sin(((double)j/(double)slices)*2*pi);
-			points[i][j].y=h;
+			points[i][j].y=r*sin(((double)j/(double)slices)*2*pi);
+			points[i][j].z=h;
 		}
 	}
 	//draw quads using generated points
@@ -177,9 +172,6 @@ void drawSphere(double radius,int slices,int stacks)
 
 		for(j=0;j<slices;j++)
 		{
-		    if(j%2 == 0) glColor3f(0, 0, 0);
-            else glColor3f(1, 1, 1);
-
 			glBegin(GL_QUADS);{
 			    //upper hemisphere
 			    glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
@@ -187,10 +179,10 @@ void drawSphere(double radius,int slices,int stacks)
 				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
 				glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
                 //lower hemisphere
-                glVertex3f(points[i][j].x,-points[i][j].y,points[i][j].z);
-				glVertex3f(points[i][j+1].x,-points[i][j+1].y,points[i][j+1].z);
-				glVertex3f(points[i+1][j+1].x,-points[i+1][j+1].y,points[i+1][j+1].z);
-				glVertex3f(points[i+1][j].x,-points[i+1][j].y,points[i+1][j].z);
+                glVertex3f(points[i][j].x,points[i][j].y,-points[i][j].z);
+				glVertex3f(points[i][j+1].x,points[i][j+1].y,-points[i][j+1].z);
+				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,-points[i+1][j+1].z);
+				glVertex3f(points[i+1][j].x,points[i+1][j].y,-points[i+1][j].z);
 			}glEnd();
 		}
 	}
@@ -272,82 +264,51 @@ void drawCylinder(double radius, int slices, int stacks)
 	}
 }
 
-void drawCanonHead(double radius, int slices, int stacks)
-{
-	struct point points[100][100];
-	int i,j;
-	double h,r;
-	//generate points
-	for(i=0;i<=stacks;i++)
-	{
-		r=2*radius - radius*cos(((double)i/(double)stacks)*(pi/2));
-		for(j=0;j<=slices;j++)
-		{
-			points[i][j].x=r*cos(((double)j/(double)slices)*2*pi);
-			points[i][j].z=r*sin(((double)j/(double)slices)*2*pi);
-			points[i][j].y=i;
-		}
-	}
-	//draw quads using generated points
-	for(i=0;i<stacks;i++)
-	{
-        for(j=0;j<slices;j++)
-		{
-		    if(j%2 == 0) glColor3f(0, 0, 0);
-            else glColor3f(1, 1, 1);
-
-			glBegin(GL_QUADS);{
-			    //upper hemisphere
-			    glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
-				glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-				glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-            }glEnd();
-		}
-	}
-}
-
-
-void drawShootingLine() {
-	glPushMatrix();
-	glColor3f(1, 0, 0);
-	glBegin(GL_LINES);{
-		glVertex3f(gun_l.x, gun_l.y, gun_l.z);
-		glVertex3f(gun_l.x*700, gun_l.y*700, gun_l.z*700);
-	}glEnd();
-	glPopMatrix();
-}
-
-void shoot() {
-	double t = plane_dist/gun_l.y;
-	struct point c = {gun_l.x*t, gun_l.y*t, gun_l.z*t};
-
-	if((c.x < plane_len && c.x > -plane_len) && (c.z < plane_len && c.z > -plane_len)) {
-		printf("hit\n");
-		//printf("c: %f, %f, %f\n", c.x, c.y, c.z);
-		bullets[(bullet_count++)%max_bullets] = {c.x, c.y-5, c.z};
-	}
-	else {
-		printf("miss\n");
-	}
-}
-
-void drawBulletShot() {
-	for (int i = 0; i < bullet_count; i++)
-	{
-		glPushMatrix();
-
-		glTranslatef(bullets[i].x, bullets[i].y, bullets[i].z);
-    	glColor3f(1, 0, 0);
-    	drawSquare(5);
-
-		glPopMatrix();
-	}
-
-}
-
 void drawStuff() {
-    glPushMatrix();
+	for (auto & object : environmentData.objects) {
+		if(object->getType() == "sphere") {
+			//cout << "sphere" << endl;
+			glPushMatrix();{
+				glTranslatef(object->referencePoint.x, object->referencePoint.y, object->referencePoint.z);
+				glColor3f(object->color.r, object->color.g, object->color.b);
+				drawSphere(object->length, 40, 40);
+			}glPopMatrix();	
+		}
+		else if(object->getType() == "floor") {
+			//cout << "floor" << endl;
+			Floor* floor = dynamic_cast<Floor*>(object);
+			double floorWidth = floor->floorWidth;
+			double tileWidth = floor->tileWidth;
+			int tileCount = floorWidth/tileWidth;
+			int k = 0;
+			for (int i = 0; i < tileCount; ++i) {
+				for (int j = 0; j < tileCount; ++j, ++k) {
+					if((i+j)%2) glColor3f(1, 1, 1);
+					else glColor3f(0, 0, 0);
+					glPushMatrix();{
+						glTranslatef(floor->referencePoint.x+(tileWidth/2)+(tileWidth*i), floor->referencePoint.y+(tileWidth/2)+(tileWidth*j), floor->referencePoint.z);
+						drawSquare(floor->length/2);
+					}glPopMatrix();	
+				}
+			}	
+		}
+		else if (object->getType() == "triangle") {
+			Triangle* triangle = dynamic_cast<Triangle*>(object);
+			glPushMatrix();{
+				glColor3f(triangle->color.r, triangle->color.g, triangle->color.b);
+				drawTriangle(triangle->a.toPoint(), triangle->b.toPoint(), triangle->c.toPoint());
+			}glPopMatrix();
+		}
+	}
+
+	for (auto & light : environmentData.lights) {
+		glPushMatrix();{
+			glTranslatef(light->position.x, light->position.y, light->position.z);
+			glColor3f(light->color.r, light->color.g, light->color.b);
+			drawSphere(0.75, 40, 40);
+		}glPopMatrix();
+	}
+    /*glPushMatrix();
 
     glRotatef(q_angle, 0, 0, 1);
     drawHalfSphere(big_rad, 40, 40, false);
@@ -379,7 +340,7 @@ void drawStuff() {
 
     glPopMatrix();
 
-	drawBulletShot();
+	drawBulletShot();*/
 }
 
 void reset_pos() {
@@ -387,12 +348,6 @@ void reset_pos() {
 	u = {0, 0, 1};
 	r = {-1.0/sqrt(2), 1.0/sqrt(2), 0};
 	l = {-1.0/sqrt(2), -1.0/sqrt(2), 0};
-
-	gun_l = {0, -1, 0};
-	q_angle = 0;
-	e_angle = 0;
-	a_angle = 0;
-	d_angle = 0;
 }
 
 void rotate_vector(struct point a, struct point b, double theta, int dir){
@@ -430,14 +385,7 @@ void rotate_vector(struct point a, struct point b, double theta, int dir){
         u.z = c.z/unit;
         //printf("u: u.x: %f, u.y: %f, u.z: %f\n", u.x, u.y, u.z);
 	}
-	else if (dir == GUN) {
-		gun_l.x = c.x/unit;
-        gun_l.y = c.y/unit;
-        gun_l.z = c.z/unit;
-		//printf("gun_l: gun_l.x: %f, gun_l.y: %f, gun_l.z: %f\n", gun_l.x, gun_l.y, gun_l.z);
-	}
 }
-
 
 void keyboardListener(unsigned char key, int x,int y){
 	switch(key){
@@ -478,49 +426,6 @@ void keyboardListener(unsigned char key, int x,int y){
 			rotate_vector(r, l, rotate_angle, RIGHT);
 			rotate_vector(u, l, rotate_angle, UP);
 			break;
-
-		case 'q':
-			if(q_angle+angle_inc < 60) {
-				q_angle += angle_inc;
-				rotate_vector(gun_l, {0, 0, 1}, angle_inc*(pi/180), GUN);
-			}
-            break;
-        case 'w':
-			if (q_angle-angle_inc > -60) {
-				q_angle -= angle_inc;
-				rotate_vector(gun_l, {0, 0, 1}, -angle_inc*(pi/180), GUN);
-			}
-            break;
-        case 'e':
-            if (e_angle+angle_inc < 50) {
-				e_angle += angle_inc;
-				rotate_vector(gun_l, {1, 0, 0}, angle_inc*(pi/180), GUN);
-			}
-			break;
-        case 'r':
-            if (e_angle-angle_inc > -50) {
-				e_angle -= angle_inc;
-				rotate_vector(gun_l, {1, 0, 0}, -angle_inc*(pi/180), GUN);
-			}
-			break;
-        case 'a':
-            if (a_angle+angle_inc < 50) {
-				a_angle += angle_inc;
-				rotate_vector(gun_l, {1, 0, 0}, angle_inc*(pi/180), GUN);
-			}
-			break;
-        case 's':
-            if (a_angle-angle_inc > -50) {
-				a_angle -= angle_inc;
-				rotate_vector(gun_l, {1, 0, 0}, -angle_inc*(pi/180), GUN);
-			}
-			break;
-        case 'd':
-            d_angle = d_angle+angle_inc > 60 ? d_angle : d_angle+angle_inc;
-            break;
-        case 'f':
-            d_angle = d_angle-angle_inc < -60 ? d_angle : d_angle-angle_inc;
-            break;
 
 		case '0':
             reset_pos();
@@ -590,7 +495,7 @@ void mouseListener(int button, int state, int x, int y){	//x, y is the x-y of th
 		case GLUT_RIGHT_BUTTON:
 			//........
 			if(state == GLUT_DOWN){		// 2 times?? in ONE click? -- solution is checking DOWN or UP
-				shoot();
+				//shoot();
 			}
 			break;
 
@@ -676,30 +581,11 @@ void init(){
 	cameraAngle=1.0;
 	angle=0;
 	rotate_angle=pi/10.0;
-	angle_inc = 2;
-
+	
 	pos = {200, 150, 50};
 	u = {0, 0, 1};
 	r = {-1.0/sqrt(2), 1.0/sqrt(2), 0};
 	l = {-1.0/sqrt(2), -1.0/sqrt(2), 0};
-
-	gun_l = {0, 1, 0};
-
-	q_angle = 0;
-	e_angle = 0;
-	a_angle = 0;
-	d_angle = 0;
-
-	bullet_count = 0;
-	max_bullets = 100;
-
-	plane_dist = 500;
-	plane_len = 250;
-
-	big_rad = 40;
-	small_rad = 10;
-	cylinder_len = 100;
-	header_len = 20;
 
 	//clear the screen
 	glClearColor(0,0,0,0);
@@ -729,6 +615,10 @@ int main(int argc, char **argv){
 
 	glutCreateWindow("Ray Tracing Field");
 
+	string dir = "sample/";
+    string sceneFileName = dir+"scene.txt";
+	environmentData.loadData(sceneFileName);
+	//environmentData.toString();
 	init();
 
 	glEnable(GL_DEPTH_TEST);	//enable Depth Testing
