@@ -5,13 +5,81 @@
 #include <vector>
 #include <cmath>
 
+#include <glut.h>
+#define pi (2*acos(0.0))
+
+
 using namespace std;
 
+//accessory functions and structure
 struct point
 {
 	double x,y,z;
 };
 
+void drawSquare(double a)
+{
+	//glColor3f(1.0,0.0,0.0);
+	glBegin(GL_QUADS);{
+		glVertex3f( a, a, 0);
+		glVertex3f( a, -a, 0);
+		glVertex3f(-a, -a, 0);
+		glVertex3f(-a, a, 0);
+	}glEnd();
+}
+
+void drawTriangle(struct point a, struct point b, struct point c)
+{
+	//glColor3f(1.0,0.0,0.0);
+	glBegin(GL_TRIANGLES);{
+		glVertex3f(a.x, a.y, a.z);
+		glVertex3f(b.x, b.y, b.z);
+		glVertex3f(c.x, c.y, c.z);
+	}glEnd();
+}
+
+void drawSphere(double radius,int slices,int stacks)
+{
+	struct point points[100][100];
+	int i,j;
+	double h,r;
+	//generate points
+	for(i=0;i<=stacks;i++)
+	{
+		h=radius*sin(((double)i/(double)stacks)*(pi/2));
+		r=radius*cos(((double)i/(double)stacks)*(pi/2));
+		for(j=0;j<=slices;j++)
+		{
+			points[i][j].x=r*cos(((double)j/(double)slices)*2*pi);
+			points[i][j].y=r*sin(((double)j/(double)slices)*2*pi);
+			points[i][j].z=h;
+		}
+	}
+	//draw quads using generated points
+	for(i=0;i<stacks;i++)
+	{
+        //glColor3f((double)i/(double)stacks,(double)i/(double)stacks,(double)i/(double)stacks);
+
+		for(j=0;j<slices;j++)
+		{
+			glBegin(GL_QUADS);{
+			    //upper hemisphere
+			    glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
+				glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
+				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
+				glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
+                //lower hemisphere
+                glVertex3f(points[i][j].x,points[i][j].y,-points[i][j].z);
+				glVertex3f(points[i][j+1].x,points[i][j+1].y,-points[i][j+1].z);
+				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,-points[i+1][j+1].z);
+				glVertex3f(points[i+1][j].x,points[i+1][j].y,-points[i+1][j].z);
+			}glEnd();
+		}
+	}
+}
+
+
+//classes
 class Vector3D{
 public:
     double x, y, z;
@@ -87,9 +155,31 @@ public:
 
     Light(const Vector3D &centre, const Color &color) : position(centre), color(color) {}
 
+    void draw() {
+        glPushMatrix();{
+			glTranslatef(position.x, position.y, position.z);
+			glColor3f(color.r, color.g, color.b);
+			drawSphere(0.75, 40, 40);
+		}glPopMatrix();
+    }
     string toString() const {
         return "Position: " + position.toString() +
                "\nColor: " + color.toString();
+    }
+};
+
+class Ray{
+public:
+    Vector3D start;
+    Vector3D dir;
+
+    Ray(const Vector3D &start, const Vector3D &dir) : start(start), dir(dir) {
+        Ray::dir.normalize();
+    }
+
+    string toString() const {
+        return "Start: " + start.toString() +
+               "\nDir: " + dir.toString();
     }
 };
 
@@ -110,7 +200,10 @@ public:
                                                                                          height(height), width(width),
                                                                                          length(length) {}
 
-    virtual void draw(){}
+    virtual void draw() {}
+    virtual double interset(const Ray &ray, const Color &color, int level) {
+        return -1;
+    }
 
     void setType(const string &type) {
         Object::type = type;
@@ -150,7 +243,15 @@ public:
     Sphere(const Vector3D &referencePoint, double length) : Object(referencePoint, length) {}
 
     void draw() override {
+        glPushMatrix();{
+            glTranslatef(referencePoint.x, referencePoint.y, referencePoint.z);
+            glColor3f(color.r, color.g, color.b);
+            drawSphere(length, 40, 40);
+        }glPopMatrix();
+    }
 
+    double interset(const Ray &ray, const Color &color, int level) override {
+        return -1;
     }
 };
 
@@ -163,7 +264,39 @@ public:
             : a(a), b(b), c(c) {}
 
     void draw() override {
+        glPushMatrix();{
+            glColor3f(color.r, color.g, color.b);
+            drawTriangle(a.toPoint(), b.toPoint(), c.toPoint());
+        }glPopMatrix();
+    }
 
+    double interset(const Ray &ray, const Color &color, int level) override {
+        return -1;
+    }
+};
+
+class General: public Object{
+public: 
+    double equationCoEfficients[10]{};
+    General(const Vector3D &referencePoint, double height, double width, double length) : Object(referencePoint, height, width, length) {}
+
+    void setCoEfficients(double A, double B, double C, double D, double E, double F, double G, double H, double I, double J) {
+        equationCoEfficients[0] = A;
+        equationCoEfficients[0] = B;
+        equationCoEfficients[0] = C;
+        equationCoEfficients[0] = D;
+        equationCoEfficients[0] = E;
+        equationCoEfficients[0] = F;
+        equationCoEfficients[0] = G;
+        equationCoEfficients[0] = H;
+        equationCoEfficients[0] = I;
+        equationCoEfficients[0] = J;
+    }
+
+    void draw() override {}
+
+    double interset(const Ray &ray, const Color &color, int level) override {
+        return -1;
     }
 };
 
@@ -177,7 +310,22 @@ public:
     }
 
     void draw() override {
+        int tileCount = floorWidth/tileWidth;
+        for (int i = 0; i < tileCount; ++i) {
+            for (int j = 0; j < tileCount; ++j) {
+                if((i+j)%2) glColor3f(1, 1, 1);
+                else glColor3f(0, 0, 0);
 
+                glPushMatrix();{
+                    glTranslatef(referencePoint.x+(tileWidth/2)+(tileWidth*i), referencePoint.y+(tileWidth/2)+(tileWidth*j), referencePoint.z);
+                    drawSquare(tileWidth/2);
+                }glPopMatrix();
+            }
+        }
+    }
+
+    double interset(const Ray &ray, const Color &color, int level) override {
+        return -1;
     }
 };
 

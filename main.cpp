@@ -6,6 +6,7 @@
 #include <glut.h>
 
 #include "1605078_classes.h"
+#include "bitmap_image.hpp"
 
 #define pi (2*acos(0.0))
 #define UP 1
@@ -22,11 +23,6 @@ double angle;
 double rotate_angle;
 
 Data environmentData;
-
-/*struct point
-{
-	double x,y,z;
-};*/
 
 struct point pos;
 struct point u, r, l;
@@ -73,274 +69,77 @@ void drawGrid()
 	}
 }
 
-void drawSquare(double a)
-{
-	//glColor3f(1.0,0.0,0.0);
-	glBegin(GL_QUADS);{
-		glVertex3f( a, a, 0);
-		glVertex3f( a, -a, 0);
-		glVertex3f(-a, -a, 0);
-		glVertex3f(-a, a, 0);
-	}glEnd();
-}
-
-void drawTriangle(struct point a, struct point b, struct point c) {
-	//glColor3f(1.0,0.0,0.0);
-	glBegin(GL_TRIANGLES);{
-		glVertex3f(a.x, a.y, a.z);
-		glVertex3f(b.x, b.y, b.z);
-		glVertex3f(c.x, c.y, c.z);
-	}glEnd();
-}
-
-void drawCircle(double radius,int segments)
-{
-    int i;
-    struct point points[100];
-    //glColor3f(0.7,0.7,0.7);
-    //generate points
-    for(i=0;i<=segments;i++)
-    {
-        points[i].x=radius*cos(((double)i/(double)segments)*2*pi);
-        points[i].y=radius*sin(((double)i/(double)segments)*2*pi);
-    }
-    //draw segments using generated points
-    for(i=0;i<segments;i++)
-    {
-        glBegin(GL_LINES);
-        {
-			glVertex3f(points[i].x,points[i].y,0);
-			glVertex3f(points[i+1].x,points[i+1].y,0);
-        }
-        glEnd();
-    }
-}
-
-void drawCone(double radius,double height,int segments)
-{
-    int i;
-    double shade;
-    struct point points[100];
-    //generate points
-    for(i=0;i<=segments;i++)
-    {
-        points[i].x=radius*cos(((double)i/(double)segments)*2*pi);
-        points[i].y=radius*sin(((double)i/(double)segments)*2*pi);
-    }
-    //draw triangles using generated points
-    for(i=0;i<segments;i++)
-    {
-        //create shading effect
-        if(i<segments/2)shade=2*(double)i/(double)segments;
-        else shade=2*(1.0-(double)i/(double)segments);
-        glColor3f(shade,shade,shade);
-
-        glBegin(GL_TRIANGLES);
-        {
-            glVertex3f(0,0,height);
-			glVertex3f(points[i].x,points[i].y,0);
-			glVertex3f(points[i+1].x,points[i+1].y,0);
-        }
-        glEnd();
-    }
-}
-
-void drawSphere(double radius,int slices,int stacks)
-{
-	struct point points[100][100];
-	int i,j;
-	double h,r;
-	//generate points
-	for(i=0;i<=stacks;i++)
-	{
-		h=radius*sin(((double)i/(double)stacks)*(pi/2));
-		r=radius*cos(((double)i/(double)stacks)*(pi/2));
-		for(j=0;j<=slices;j++)
-		{
-			//points[i][j].x=r*cos(((double)j/(double)slices)*2*pi);
-			//points[i][j].y=r*sin(((double)j/(double)slices)*2*pi);
-			//points[i][j].z=h;
-			points[i][j].x=r*cos(((double)j/(double)slices)*2*pi);
-			points[i][j].y=r*sin(((double)j/(double)slices)*2*pi);
-			points[i][j].z=h;
-		}
-	}
-	//draw quads using generated points
-	for(i=0;i<stacks;i++)
-	{
-        //glColor3f((double)i/(double)stacks,(double)i/(double)stacks,(double)i/(double)stacks);
-
-		for(j=0;j<slices;j++)
-		{
-			glBegin(GL_QUADS);{
-			    //upper hemisphere
-			    glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
-				glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-				glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-                //lower hemisphere
-                glVertex3f(points[i][j].x,points[i][j].y,-points[i][j].z);
-				glVertex3f(points[i][j+1].x,points[i][j+1].y,-points[i][j+1].z);
-				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,-points[i+1][j+1].z);
-				glVertex3f(points[i+1][j].x,points[i+1][j].y,-points[i+1][j].z);
-			}glEnd();
-		}
-	}
-}
-
-void drawHalfSphere(double radius, int slices, int stacks, bool dir)
-{
-	struct point points[100][100];
-	int i,j;
-	double h,r;
-	//generate points
-	for(i=0;i<=stacks;i++)
-	{
-		h=radius*sin(((double)i/(double)stacks)*(pi/2));
-		r=radius*cos(((double)i/(double)stacks)*(pi/2));
-		for(j=0;j<=slices;j++)
-		{
-			points[i][j].x=r*cos(((double)j/(double)slices)*2*pi);
-			points[i][j].z=r*sin(((double)j/(double)slices)*2*pi);
-			points[i][j].y=h;
-		}
-	}
-	//draw quads using generated points
-	for(i=0;i<stacks;i++)
-	{
-        for(j=0;j<slices;j++)
-		{
-		    if(j%2 == 0) glColor3f(0, 0, 0);
-            else glColor3f(1, 1, 1);
-
-			glBegin(GL_QUADS);{
-			    if(dir) {
-					//upper hemisphere
-			    	glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
-					glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-					glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-					glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-				}else {
-					//lower hemisphere
-					glVertex3f(points[i][j].x,-points[i][j].y,points[i][j].z);
-					glVertex3f(points[i][j+1].x,-points[i][j+1].y,points[i][j+1].z);
-					glVertex3f(points[i+1][j+1].x,-points[i+1][j+1].y,points[i+1][j+1].z);
-					glVertex3f(points[i+1][j].x,-points[i+1][j].y,points[i+1][j].z);
-				}
-			}glEnd();
-		}
-	}
-}
-
-void drawCylinder(double radius, int slices, int stacks)
-{
-	struct point points[150][150];
-	int i,j;
-	//generate points
-	for(i=0;i<=stacks;i++)
-	{
-		for(j=0;j<=slices;j++)
-		{
-			points[i][j].x=radius*cos(((double)j/(double)slices)*2*pi);
-			points[i][j].z=radius*sin(((double)j/(double)slices)*2*pi);
-			points[i][j].y=i;
-		}
-	}
-	//draw quads using generated points
-	for(i=0;i<stacks;i++)
-	{
-		for(j=0;j<slices;j++)
-		{
-		    if(j%2 == 0) glColor3f(0, 0, 0);
-            else glColor3f(1, 1, 1);
-			glBegin(GL_QUADS);{
-			    //upper hemisphere
-				glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
-				glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-				glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-			}glEnd();
-		}
-	}
-}
-
 void drawStuff() {
 	for (auto & object : environmentData.objects) {
-		if(object->getType() == "sphere") {
-			//cout << "sphere" << endl;
-			glPushMatrix();{
-				glTranslatef(object->referencePoint.x, object->referencePoint.y, object->referencePoint.z);
-				glColor3f(object->color.r, object->color.g, object->color.b);
-				drawSphere(object->length, 40, 40);
-			}glPopMatrix();	
-		}
-		else if(object->getType() == "floor") {
-			//cout << "floor" << endl;
-			Floor* floor = dynamic_cast<Floor*>(object);
-			double floorWidth = floor->floorWidth;
-			double tileWidth = floor->tileWidth;
-			int tileCount = floorWidth/tileWidth;
-			int k = 0;
-			for (int i = 0; i < tileCount; ++i) {
-				for (int j = 0; j < tileCount; ++j, ++k) {
-					if((i+j)%2) glColor3f(1, 1, 1);
-					else glColor3f(0, 0, 0);
-					glPushMatrix();{
-						glTranslatef(floor->referencePoint.x+(tileWidth/2)+(tileWidth*i), floor->referencePoint.y+(tileWidth/2)+(tileWidth*j), floor->referencePoint.z);
-						drawSquare(floor->length/2);
-					}glPopMatrix();	
-				}
-			}	
-		}
-		else if (object->getType() == "triangle") {
-			Triangle* triangle = dynamic_cast<Triangle*>(object);
-			glPushMatrix();{
-				glColor3f(triangle->color.r, triangle->color.g, triangle->color.b);
-				drawTriangle(triangle->a.toPoint(), triangle->b.toPoint(), triangle->c.toPoint());
-			}glPopMatrix();
-		}
+		object->draw();
 	}
 
 	for (auto & light : environmentData.lights) {
-		glPushMatrix();{
-			glTranslatef(light->position.x, light->position.y, light->position.z);
-			glColor3f(light->color.r, light->color.g, light->color.b);
-			drawSphere(0.75, 40, 40);
-		}glPopMatrix();
+		light->draw();
 	}
-    /*glPushMatrix();
+}
 
-    glRotatef(q_angle, 0, 0, 1);
-    drawHalfSphere(big_rad, 40, 40, false);
+void capture() {
+	bitmap_image image(environmentData.imageDimension, environmentData.imageDimension);
+    for(int i=0;i<environmentData.imageDimension;i++){
+        for(int j=0;j<environmentData.imageDimension;j++){
+            image.set_pixel(i,j, 0, 0, 0);
+        }
+    }
 
-	glRotatef(e_angle, 1, 0, 0);
-	drawHalfSphere(big_rad, 40, 40, true);
-    //drawSphere(big_rad, 40, 40);
+	double windowHeight = 500;
+	double windowWidth = 500;
+	double viewAngle = 80;
+	double planeDistance = (windowHeight/2.0) / tan(viewAngle/2.0);
+	Vector3D eye(pos.x, pos.y, pos.z);
+	Vector3D topLeft = eye + Vector3D(l.x*planeDistance, l.y*planeDistance, l.z*planeDistance)
+						   - Vector3D(r.x*(windowWidth/2.0), r.y*(windowWidth/2.0), r.z*(windowWidth/2.0))
+						   + Vector3D(u.x*(windowHeight/2.0), u.y*(windowHeight/2.0), u.z*(windowHeight/2.0));
+	
+	double du = windowWidth/environmentData.imageDimension;
+	double dv = windowHeight/environmentData.imageDimension;
 
-	glTranslatef(0, big_rad, 0);
-    glRotatef(a_angle, 1, 0, 0);
-    glRotatef(d_angle, 0, 1, 0);
+	topLeft = topLeft + Vector3D(r.x*(du/2), r.y*(du/2), r.z*(du/2))
+						   - Vector3D(u.x*(dv/2), u.y*(dv/2), u.z*(dv/2));
+	
+	cout << "topLeft: " << topLeft.toString() << endl;
+	int nearest;
+	double t, t_min = 100000;
+	for(int i=0;i<environmentData.imageDimension;i++){
+        for(int j=0;j<environmentData.imageDimension;j++){
+            Vector3D curPixel = topLeft + Vector3D(r.x*du*i, r.y*du*i, r.z*du*i)
+						   - Vector3D(u.x*dv*j, u.y*dv*j, u.z*dv*j);
+			Ray ray(eye, curPixel-eye);
+			
+			t_min = 100000;
+			Object* nearestObj = nullptr;
+			Color color;
+			
+			for (auto & object : environmentData.objects) {
+				t = object->interset(ray, color, 0);
+				//if(i%100  == 0 && j%100 == 0) cout << "t: " << t << endl;
+				if(t> 0 && t < t_min) {
+					t_min = t;
+					nearestObj = object;
+				}
+			}
+			
+			if(i%100 == 0 && j%100 == 0) {
+				cout << i << "," << j << endl;
+				cout << "ray: " << ray.toString() << endl; 
+				cout << "curPixel: " << curPixel.toString() << endl;
+			}
 
-	glTranslatef(0, small_rad, 0);
-	drawHalfSphere(small_rad, 40, 40, false);
-    drawCylinder(small_rad, 40, cylinder_len);
-
-    glTranslatef(0, cylinder_len, 0);
-    drawCanonHead(small_rad, 40, header_len);
-
-    glPopMatrix();
-
-	//drawShootingLine();
-
-	glPushMatrix();
-
-    glTranslatef(0, plane_dist, 0);
-    glColor3f(0.5, 0.5, 0.5);
-    drawSquare(plane_len);
-
-    glPopMatrix();
-
-	drawBulletShot();*/
+			if(nearestObj) {
+				//cout << "nearestObj: " << nearestObj->toString() << endl;
+				t_min = nearestObj->interset(ray, color, 1);
+				image.set_pixel(i,j, color.r*255, color.g*255, color.b*255);
+			}
+        }
+    }
+	cout << "out of loop" << endl;
+	image.save_image("out.bmp");
+						   
 }
 
 void reset_pos() {
@@ -428,8 +227,9 @@ void keyboardListener(unsigned char key, int x,int y){
 			break;
 
 		case '0':
-            reset_pos();
-            break;
+            //reset_pos();
+            capture();
+			break;
 
 		default:
 			break;
@@ -548,21 +348,6 @@ void display(){
 	drawGrid();
 
 	drawStuff();
-
-    //glColor3f(1,0,0);
-    //drawSquare(10);
-
-    //drawSS();
-
-    //drawCircle(30,24);
-
-    //drawCone(20,50,24);
-
-	//drawSphere(30,24,20);
-
-
-
-
 	//ADD this line in the end --- if you use double buffer (i.e. GL_DOUBLE)
 	glutSwapBuffers();
 }
@@ -581,7 +366,7 @@ void init(){
 	cameraAngle=1.0;
 	angle=0;
 	rotate_angle=pi/10.0;
-	
+
 	pos = {200, 150, 50};
 	u = {0, 0, 1};
 	r = {-1.0/sqrt(2), 1.0/sqrt(2), 0};
