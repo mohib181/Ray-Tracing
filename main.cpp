@@ -92,23 +92,22 @@ void capture() {
 	double viewAngle = 80;
 	double planeDistance = (windowHeight/2.0) / tan(viewAngle/2.0);
 	Vector3D eye(pos.x, pos.y, pos.z);
-	Vector3D topLeft = eye + Vector3D(l.x*planeDistance, l.y*planeDistance, l.z*planeDistance)
-						   - Vector3D(r.x*(windowWidth/2.0), r.y*(windowWidth/2.0), r.z*(windowWidth/2.0))
-						   + Vector3D(u.x*(windowHeight/2.0), u.y*(windowHeight/2.0), u.z*(windowHeight/2.0));
+	Vector3D vector_l(l.x, l.y, l.z);
+	Vector3D vector_r(r.x, r.y, r.z);
+	Vector3D vector_u(u.x, u.y, u.z);
+	
+	Vector3D topLeft = eye + vector_l*planeDistance - vector_r*(windowWidth/2.0) + vector_u*(windowHeight/2.0);
 	
 	double du = windowWidth/environmentData.imageDimension;
 	double dv = windowHeight/environmentData.imageDimension;
 
-	topLeft = topLeft + Vector3D(r.x*(du/2), r.y*(du/2), r.z*(du/2))
-						   - Vector3D(u.x*(dv/2), u.y*(dv/2), u.z*(dv/2));
-	
-	cout << "topLeft: " << topLeft.toString() << endl;
-	int nearest;
+	topLeft = topLeft + vector_r*(du/2) - vector_u*(dv/2);
+	//cout << "topLeft: " << topLeft.toString() << endl;
+
 	double t, t_min = 100000;
 	for(int i=0;i<environmentData.imageDimension;i++){
         for(int j=0;j<environmentData.imageDimension;j++){
-            Vector3D curPixel = topLeft + Vector3D(r.x*du*i, r.y*du*i, r.z*du*i)
-						   - Vector3D(u.x*dv*j, u.y*dv*j, u.z*dv*j);
+            Vector3D curPixel = topLeft + vector_r*(du*i) - vector_u*(dv*j);
 			Ray ray(eye, curPixel-eye);
 			
 			t_min = 100000;
@@ -118,17 +117,17 @@ void capture() {
 			for (auto & object : environmentData.objects) {
 				t = object->interset(ray, color, 0);
 				//if(i%100  == 0 && j%100 == 0) cout << "t: " << t << endl;
-				if(t> 0 && t < t_min) {
+				if(t > 0 && t < t_min) {
 					t_min = t;
 					nearestObj = object;
 				}
 			}
 			
-			if(i%100 == 0 && j%100 == 0) {
+			/*if(i%100 == 0 && j%100 == 0) {
 				cout << i << "," << j << endl;
 				cout << "ray: " << ray.toString() << endl; 
 				cout << "curPixel: " << curPixel.toString() << endl;
-			}
+			}*/
 
 			if(nearestObj) {
 				//cout << "nearestObj: " << nearestObj->toString() << endl;
@@ -137,7 +136,7 @@ void capture() {
 			}
         }
     }
-	cout << "out of loop" << endl;
+	//cout << "out of loop" << endl;
 	image.save_image("out.bmp");
 						   
 }

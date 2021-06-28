@@ -123,6 +123,11 @@ public:
         return Vector3D(a, b, c);
     }
 
+    template <typename T>
+    Vector3D operator * (const T n) const {
+        return Vector3D(x*n, y*n, z*n);
+    }
+
     struct point toPoint() {
         return {x, y, z};
     }
@@ -201,7 +206,7 @@ public:
                                                                                          length(length) {}
 
     virtual void draw() {}
-    virtual double interset(const Ray &ray, const Color &color, int level) {
+    virtual double interset(const Ray &ray, Color &color, int level) {
         return -1;
     }
 
@@ -250,8 +255,31 @@ public:
         }glPopMatrix();
     }
 
-    double interset(const Ray &ray, const Color &color, int level) override {
-        return -1;
+    double interset(const Ray &ray, Color &color, int level) override {
+        double a = 1;
+        double b = 2 * ray.dir.dotProduct(ray.start);
+        double c = ray.start.dotProduct(ray.start) - (length*length);
+        double det = b*b - 4*a*c;
+        double retValue = -1;
+        
+        if(det < 0) retValue = -1;
+        else if(det == 0) retValue = -b/(2*a);
+        else {
+            double t1 = (-b-sqrt(det))/(2*a);
+            double t2 = (-b+sqrt(det))/(2*a);
+            retValue = -min(t1, t2);
+        }
+
+        if(level == 0) return retValue;
+        else {
+            Vector3D intersectingPoint = ray.start + ray.dir*retValue;
+            
+            color.r = Sphere::color.r;
+            color.g = Sphere::color.g;
+            color.b = Sphere::color.b;
+
+            return retValue;
+        }
     }
 };
 
@@ -270,8 +298,43 @@ public:
         }glPopMatrix();
     }
 
-    double interset(const Ray &ray, const Color &color, int level) override {
-        return -1;
+    double interset(const Ray &ray, Color &color, int level) override {
+        double retValue = -1;
+        const float EPSILON = 0.0000001;
+        Vector3D edge1, edge2, h, s, q;
+        float k,f,u,v;
+        
+        edge1 = b - a;
+        edge2 = c - a;
+        
+        h = ray.dir.crossProduct(edge2);
+        k = edge1.dotProduct(h);
+        
+        if (k > -EPSILON && k < EPSILON) retValue = -1;    // This ray is parallel to this triangle.
+        
+        f = 1.0/k;
+        s = ray.start - a;
+        u = f * s.dotProduct(h);
+        if (u < 0.0 || u > 1.0) retValue = -1; //figure out left
+        
+        q = s.crossProduct(edge1);
+        v = f * ray.dir.dotProduct(q);
+        if (v < 0.0 || u + v > 1.0) retValue = -1; //figure out left
+        
+        // At this stage we can compute t to find out where the intersection point is on the line.
+        float t = f * edge2.dotProduct(q);
+        if (t > EPSILON) retValue = t; // ray intersection
+        else retValue = -1; // This means that there is a line intersection but not a ray intersection.
+
+        if(level == 0) return retValue;
+        else {
+            Vector3D intersectingPoint = ray.start + ray.dir*retValue;
+            color.r = Triangle::color.r;
+            color.g = Triangle::color.g;
+            color.b = Triangle::color.b;
+            
+            return retValue;
+        }
     }
 };
 
@@ -295,7 +358,7 @@ public:
 
     void draw() override {}
 
-    double interset(const Ray &ray, const Color &color, int level) override {
+    double interset(const Ray &ray, Color &color, int level) override {
         return -1;
     }
 };
@@ -324,8 +387,36 @@ public:
         }
     }
 
-    double interset(const Ray &ray, const Color &color, int level) override {
-        return -1;
+    double interset(const Ray &ray, Color &color, int level) override {
+        Vector3D z(0, 0, 1);
+        double retValue = -1;
+        double dotProduct = ray.dir.dotProduct(z);
+        if(dotProduct == 0) retValue = -1;
+        else {
+            retValue = z.dotProduct(Vector3D(0, 0, 0) - ray.start)/dotProduct;
+        }
+
+        if(level == 0) return retValue;
+        else {
+            Vector3D intersectingPoint = ray.start + ray.dir*retValue;
+            intersectingPoint = intersectingPoint - referencePoint;
+
+            int i = intersectingPoint.x/tileWidth;
+            int j = intersectingPoint.y/tileWidth;
+
+            if((i+j)%2) {
+                color.r = 1;
+                color.g = 1;
+                color.b = 1;
+            }
+            else {
+                color.r = 0;
+                color.g = 0;
+                color.b = 0;
+            }
+            return retValue;
+        }
+        
     }
 };
 
@@ -476,7 +567,7 @@ public:
 
         inputFile.close();
 
-        auto* floor = new Floor(floorWidth, tileWidth);
+        Floor* floor = new Floor(floorWidth, tileWidth);
         floor->setType("floor");
         floor->setShine(10);
         floor->setCoEfficients(0.3, 0.0, 0.0, 0.0);
