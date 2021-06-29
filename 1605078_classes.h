@@ -329,6 +329,8 @@ public:
         double t = f * edge2.dotProduct(q);
         // ray intersection
         if (t > EPSILON) { 
+            if(level == 0) return t;
+
             Vector3D intersectingPoint = ray.start + ray.dir*t;
             //cout << intersectingPoint.toString() << endl;
 
@@ -342,28 +344,77 @@ public:
     }
 };
 
-class General: public Object{
+class GeneralQuadraticSurface: public Object{
 public: 
-    double equationCoEfficients[10]{};
-    General(const Vector3D &referencePoint, double height, double width, double length) : Object(referencePoint, height, width, length) {}
+    double A, B, C, D, E, F, G, H, I, J;
+    GeneralQuadraticSurface() {}
 
-    void setCoEfficients(double A, double B, double C, double D, double E, double F, double G, double H, double I, double J) {
-        equationCoEfficients[0] = A;
-        equationCoEfficients[1] = B;
-        equationCoEfficients[2] = C;
-        equationCoEfficients[3] = D;
-        equationCoEfficients[4] = E;
-        equationCoEfficients[5] = F;
-        equationCoEfficients[6] = G;
-        equationCoEfficients[7] = H;
-        equationCoEfficients[8] = I;
-        equationCoEfficients[9] = J;
+    bool boundaryCheck(const Ray &ray, double t) {
+        double x = ray.start.x + ray.dir.x*t;
+        double y = ray.start.y + ray.dir.y*t;
+        double z = ray.start.z + ray.dir.z*t;
+
+        if(length > 0 && x > length) return false;
+        if(width > 0 && y > width) return false;
+        if(height > 0 && z > height) return false;
+
+        return true;
     }
 
     void draw() override {}
 
     double interset(const Ray &ray, Color &color, int level) override {
-        return -1;
+        //return -1;
+        double retValue = -1;
+        double a = A*ray.dir.x*ray.dir.x + 
+                    B*ray.dir.y*ray.dir.y + 
+                    C*ray.dir.z*ray.dir.z + 
+                    D*ray.dir.x*ray.dir.y + 
+                    E*ray.dir.x*ray.dir.z + 
+                    F*ray.dir.y*ray.dir.z;
+        double b = 2*A*ray.start.x*ray.dir.x + 2*B*ray.start.y*ray.dir.y + 2*C*ray.start.z*ray.dir.z +
+                    D*ray.start.x*ray.dir.y + 
+                    D*ray.start.y*ray.dir.x + 
+                    E*ray.start.x*ray.dir.z + 
+                    E*ray.start.z*ray.dir.x + 
+                    F*ray.start.y*ray.dir.z + 
+                    F*ray.start.z*ray.dir.y + 
+                    G*ray.dir.x + 
+                    H*ray.dir.y + 
+                    I*ray.dir.z;
+        double c = A*ray.start.x*ray.start.x + 
+                    B*ray.start.y*ray.start.y + 
+                    C*ray.start.z*ray.start.z + 
+                    D*ray.start.x*ray.start.y + 
+                    E*ray.start.x*ray.start.z + 
+                    F*ray.start.y*ray.start.z + 
+                    G*ray.start.x + 
+                    H*ray.start.y + 
+                    I*ray.start.z +
+                    J;
+
+        double det = b*b-4*a*c;
+
+        if(det < 0) retValue = -1;
+        else if(det == 0) retValue = -b/(2*a);
+        else {
+            double t1 = (-b-sqrt(det))/(2*a);
+            double t2 = (-b+sqrt(det))/(2*a);
+
+            if(boundaryCheck(ray, t1)) retValue = t1;
+            if(retValue < 0 && boundaryCheck(ray, t2)) retValue = t2;
+        }
+
+        if(level == 0) return retValue;
+        else {
+            Vector3D intersectingPoint = ray.start + ray.dir*retValue;
+            
+            color.r = GeneralQuadraticSurface::color.r;
+            color.g = GeneralQuadraticSurface::color.g;
+            color.b = GeneralQuadraticSurface::color.b;
+
+            return retValue;
+        }
     }
 };
 
@@ -449,8 +500,7 @@ public:
         int shine;
         double length, width, height;
         double ambient, diffuse, specular, recursiveReflection;
-        double A, B, C, D, E, F, G, H, I, J;
-
+        
         inputFile.open(sceneFileName);
 
         inputFile >> recursionLevel;
@@ -519,23 +569,25 @@ public:
                 objects.push_back(triangle);
             }
             else if(objectType == "general") {
-                inputFile >> A;
-                inputFile >> B;
-                inputFile >> C;
-                inputFile >> D;
-                inputFile >> E;
-                inputFile >> F;
-                inputFile >> G;
-                inputFile >> H;
-                inputFile >> I;
-                inputFile >> J;
+                auto* obj = new GeneralQuadraticSurface();
+                
+                inputFile >> obj->A;
+                inputFile >> obj->B;
+                inputFile >> obj->C;
+                inputFile >> obj->D;
+                inputFile >> obj->E;
+                inputFile >> obj->F;
+                inputFile >> obj->G;
+                inputFile >> obj->H;
+                inputFile >> obj->I;
+                inputFile >> obj->J;
 
-                inputFile >> referencePoint.x;
-                inputFile >> referencePoint.y;
-                inputFile >> referencePoint.z;
-                inputFile >> length;
-                inputFile >> width;
-                inputFile >> height;
+                inputFile >> obj->referencePoint.x;
+                inputFile >> obj->referencePoint.y;
+                inputFile >> obj->referencePoint.z;
+                inputFile >> obj->length;
+                inputFile >> obj->width;
+                inputFile >> obj->height;
 
                 inputFile >> color.r;
                 inputFile >> color.b;
@@ -548,7 +600,6 @@ public:
 
                 inputFile >> shine;
 
-                auto* obj = new Object(referencePoint, height, width, length);
                 obj->setType("general");
                 obj->setColor(color);
                 obj->setCoEfficients(ambient, diffuse, specular, recursiveReflection);
