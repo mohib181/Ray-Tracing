@@ -256,24 +256,30 @@ public:
     }
 
     double interset(const Ray &ray, Color &color, int level) override {
+        //return -1;
+        Vector3D v = ray.start-referencePoint;
         double a = 1;
-        double b = 2 * ray.dir.dotProduct(ray.start);
-        double c = ray.start.dotProduct(ray.start) - (length*length);
-        double det = b*b - 4*a*c;
+        double b = ray.dir.dotProduct(v);
+        double c = v.dotProduct(v) - (length*length);
+        double det = b*b - c;
         double retValue = -1;
         
         if(det < 0) retValue = -1;
-        else if(det == 0) retValue = -b/(2*a);
+        else if(det == 0) retValue = -b;
         else {
-            double t1 = (-b-sqrt(det))/(2*a);
-            double t2 = (-b+sqrt(det))/(2*a);
-            retValue = -min(t1, t2);
-        }
+            double t1 = -b-sqrt(det);
+            double t2 = -b+sqrt(det);
+            retValue = min(t1, t2);
 
+            if(retValue < 0) retValue = max(t1, t2);
+            if(retValue < 0) retValue = -1;
+        }
+        //if(det >= 0) cout << "retValue: " << retValue << " det: " << det << endl;
         if(level == 0) return retValue;
         else {
-            Vector3D intersectingPoint = ray.start + ray.dir*retValue;
-            
+            Vector3D intersectingPoint = ray.start-referencePoint + ray.dir*retValue;
+            //cout << intersectingPoint.toString() << endl;
+
             color.r = Sphere::color.r;
             color.g = Sphere::color.g;
             color.b = Sphere::color.b;
@@ -299,42 +305,40 @@ public:
     }
 
     double interset(const Ray &ray, Color &color, int level) override {
-        double retValue = -1;
-        const float EPSILON = 0.0000001;
+        //return -1;
+        const double EPSILON = 0.0000001;
         Vector3D edge1, edge2, h, s, q;
-        float k,f,u,v;
-        
+        double k,f,u,v;
         edge1 = b - a;
         edge2 = c - a;
-        
         h = ray.dir.crossProduct(edge2);
         k = edge1.dotProduct(h);
         
-        if (k > -EPSILON && k < EPSILON) retValue = -1;    // This ray is parallel to this triangle.
+        if (k > -EPSILON && k < EPSILON) return -1;    // This ray is parallel to this triangle.
         
         f = 1.0/k;
         s = ray.start - a;
         u = f * s.dotProduct(h);
-        if (u < 0.0 || u > 1.0) retValue = -1; //figure out left
+        if (u < 0.0 || u > 1.0) return -1;
         
         q = s.crossProduct(edge1);
         v = f * ray.dir.dotProduct(q);
-        if (v < 0.0 || u + v > 1.0) retValue = -1; //figure out left
+        if (v < 0.0 || u + v > 1.0) return -1;
         
         // At this stage we can compute t to find out where the intersection point is on the line.
-        float t = f * edge2.dotProduct(q);
-        if (t > EPSILON) retValue = t; // ray intersection
-        else retValue = -1; // This means that there is a line intersection but not a ray intersection.
+        double t = f * edge2.dotProduct(q);
+        // ray intersection
+        if (t > EPSILON) { 
+            Vector3D intersectingPoint = ray.start + ray.dir*t;
+            //cout << intersectingPoint.toString() << endl;
 
-        if(level == 0) return retValue;
-        else {
-            Vector3D intersectingPoint = ray.start + ray.dir*retValue;
             color.r = Triangle::color.r;
             color.g = Triangle::color.g;
             color.b = Triangle::color.b;
-            
-            return retValue;
+
+            return t;
         }
+        else return -1; // This means that there is a line intersection but not a ray intersection.
     }
 };
 
@@ -345,15 +349,15 @@ public:
 
     void setCoEfficients(double A, double B, double C, double D, double E, double F, double G, double H, double I, double J) {
         equationCoEfficients[0] = A;
-        equationCoEfficients[0] = B;
-        equationCoEfficients[0] = C;
-        equationCoEfficients[0] = D;
-        equationCoEfficients[0] = E;
-        equationCoEfficients[0] = F;
-        equationCoEfficients[0] = G;
-        equationCoEfficients[0] = H;
-        equationCoEfficients[0] = I;
-        equationCoEfficients[0] = J;
+        equationCoEfficients[1] = B;
+        equationCoEfficients[2] = C;
+        equationCoEfficients[3] = D;
+        equationCoEfficients[4] = E;
+        equationCoEfficients[5] = F;
+        equationCoEfficients[6] = G;
+        equationCoEfficients[7] = H;
+        equationCoEfficients[8] = I;
+        equationCoEfficients[9] = J;
     }
 
     void draw() override {}
@@ -388,22 +392,27 @@ public:
     }
 
     double interset(const Ray &ray, Color &color, int level) override {
-        Vector3D z(0, 0, 1);
+        //return -1;
+        Vector3D n(0, 0, 1);
         double retValue = -1;
-        double dotProduct = ray.dir.dotProduct(z);
-        if(dotProduct == 0) retValue = -1;
+        double denominator = ray.dir.dotProduct(n);
+        if(denominator == 0) retValue = -1;
         else {
-            retValue = z.dotProduct(Vector3D(0, 0, 0) - ray.start)/dotProduct;
+            retValue = n.dotProduct(Vector3D(0, 0, 0) - ray.start)/denominator;
         }
 
+        if (retValue < 1) return -1;
+        Vector3D intersectingPoint = ray.start + ray.dir*retValue;
+        if(intersectingPoint.x > floorWidth/2 || intersectingPoint.x < -floorWidth/2 || intersectingPoint.y > floorWidth/2 || intersectingPoint.y < -floorWidth/2) return -1;
+        
         if(level == 0) return retValue;
         else {
-            Vector3D intersectingPoint = ray.start + ray.dir*retValue;
+            if (retValue < 1) return -1;
             intersectingPoint = intersectingPoint - referencePoint;
 
             int i = intersectingPoint.x/tileWidth;
             int j = intersectingPoint.y/tileWidth;
-
+            
             if((i+j)%2) {
                 color.r = 1;
                 color.g = 1;
@@ -416,14 +425,13 @@ public:
             }
             return retValue;
         }
-        
     }
 };
 
 class Data{
 public:
     int recursionLevel, imageDimension, totalObjects, totalLights;
-    double floorWidth = 1000;
+    double floorWidth = 600;
     double tileWidth = 20;
 
     vector<Object*> objects;

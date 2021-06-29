@@ -89,40 +89,43 @@ void capture() {
 
 	double windowHeight = 500;
 	double windowWidth = 500;
-	double viewAngle = 80;
+	double viewAngle = 80*(pi/180);
 	double planeDistance = (windowHeight/2.0) / tan(viewAngle/2.0);
 	Vector3D eye(pos.x, pos.y, pos.z);
-	Vector3D vector_l(l.x, l.y, l.z);
-	Vector3D vector_r(r.x, r.y, r.z);
-	Vector3D vector_u(u.x, u.y, u.z);
+	Vector3D look(l.x, l.y, l.z);
+	Vector3D right(r.x, r.y, r.z);
+	Vector3D up(u.x, u.y, u.z);
+	look.normalize();
+	right.normalize();
+	up.normalize();
 	
-	Vector3D topLeft = eye + vector_l*planeDistance - vector_r*(windowWidth/2.0) + vector_u*(windowHeight/2.0);
+	Vector3D topLeft = eye + look*planeDistance - right*(windowWidth/2.0) + up*(windowHeight/2.0);
 	
 	double du = windowWidth/environmentData.imageDimension;
 	double dv = windowHeight/environmentData.imageDimension;
 
-	topLeft = topLeft + vector_r*(du/2) - vector_u*(dv/2);
+	topLeft = topLeft + right*(du/2) - up*(dv/2);
 	//cout << "topLeft: " << topLeft.toString() << endl;
 
 	double t, t_min = 100000;
 	for(int i=0;i<environmentData.imageDimension;i++){
         for(int j=0;j<environmentData.imageDimension;j++){
-            Vector3D curPixel = topLeft + vector_r*(du*i) - vector_u*(dv*j);
+            Vector3D curPixel = topLeft + right*(du*i) - up*(dv*j);
 			Ray ray(eye, curPixel-eye);
 			
-			t_min = 100000;
+			t_min = 10000000;
 			Object* nearestObj = nullptr;
 			Color color;
-			
 			for (auto & object : environmentData.objects) {
 				t = object->interset(ray, color, 0);
 				//if(i%100  == 0 && j%100 == 0) cout << "t: " << t << endl;
 				if(t > 0 && t < t_min) {
 					t_min = t;
 					nearestObj = object;
+					//if(object->type != "floor") cout << i << "," << j << " " << t << " " << object->type << "\n";
 				}
 			}
-			
+			//cout << ss.str() << endl;
 			/*if(i%100 == 0 && j%100 == 0) {
 				cout << i << "," << j << endl;
 				cout << "ray: " << ray.toString() << endl; 
