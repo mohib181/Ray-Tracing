@@ -7,11 +7,18 @@
 
 #include <glut.h>
 #define pi (2*acos(0.0))
-
+#define AMB 0
+#define DIFF 1
+#define SPEC 2
+#define REF 4
 
 using namespace std;
 
-//accessory functions and structure
+//accessory functions and variables
+extern int recursionLevel;
+extern double floorWidth;
+extern double tileWidth;
+
 struct point
 {
 	double x,y,z;
@@ -128,6 +135,10 @@ public:
         return Vector3D(x*n, y*n, z*n);
     }
 
+    double calculateDistance(const Vector3D &v) const {
+        return sqrt((x-v.x)*(x-v.x) + (y-v.y)*(y-v.y) + (z-v.z)*(z-v.z));
+    }
+
     struct point toPoint() {
         return {x, y, z};
     }
@@ -147,6 +158,19 @@ public:
     Color()  : r(0), g(0), b(0) {}
 
     Color(double r, double g, double b) : r(r), g(g), b(b) {}
+
+    Color operator + (const Color &c) const {
+        double r = r + c.r;
+        double g = g + c.g;
+        double b = b + c.b;
+
+        return Color(r, g, b);
+    }
+
+    template <typename T>
+    Color operator * (const T n) const {
+        return Color(r*n, g*n, b*n);
+    }
 
     string toString() const {
         return to_string(r) + " " + to_string(g) + " " + to_string(b);
@@ -243,6 +267,9 @@ public:
     }
 };
 
+extern vector<Object*> objects;
+extern vector<Light*> lights;
+
 class Sphere: public Object{
 public:
     Sphere(const Vector3D &referencePoint, double length) : Object(referencePoint, length) {}
@@ -278,11 +305,33 @@ public:
         if(level == 0) return retValue;
         else {
             Vector3D intersectingPoint = ray.start-referencePoint + ray.dir*retValue;
+            Vector3D normal = intersectingPoint - referencePoint;
+            normal.normalize();
+            //cout << normal.toString() << endl;
             //cout << intersectingPoint.toString() << endl;
 
-            color.r = Sphere::color.r;
-            color.g = Sphere::color.g;
-            color.b = Sphere::color.b;
+            color = Sphere::color*coEfficients[AMB];
+
+            /*for(auto& light: lights) {
+                Ray ray(light->position, intersectingPoint-light->position);
+                double distance = intersectingPoint.calculateDistance(light->position);
+                
+                double t;
+                bool inShadow = false;
+                Color dummyColor;
+                for (auto & object : objects) {
+                    t = object->interset(ray, dummyColor, 0);
+                    if(t > 0 && t < distance) {
+                        inShadow = true;
+                        break;
+                    }
+                }
+
+                cout << light->toString() << "->" << inShadow << endl;
+                if(!inShadow) {
+                    color = color + light->color*coEfficients[DIFF];
+                }
+            }*/
 
             return retValue;
         }
@@ -420,12 +469,7 @@ public:
 
 class Floor: public Object{
 public:
-    double floorWidth;
-    double tileWidth;
-    Floor(double floorWidth, double tileWidth) : Object(Vector3D(-floorWidth/2,-floorWidth/2,0), tileWidth) {
-        Floor::floorWidth = floorWidth;
-        Floor::tileWidth = tileWidth;
-    }
+    Floor(double floorWidth, double tileWidth) : Object(Vector3D(-floorWidth/2,-floorWidth/2,0), tileWidth) {}
 
     void draw() override {
         int tileCount = floorWidth/tileWidth;
@@ -479,169 +523,4 @@ public:
     }
 };
 
-class Data{
-public:
-    int recursionLevel, imageDimension, totalObjects, totalLights;
-    double floorWidth = 600;
-    double tileWidth = 20;
 
-    vector<Object*> objects;
-    vector<Light*> lights;
-
-    Data() {}
-
-    void loadData(const string& sceneFileName) {
-        string objectType;
-        ifstream inputFile;
-
-        Color color;
-        Vector3D referencePoint;
-
-        int shine;
-        double length, width, height;
-        double ambient, diffuse, specular, recursiveReflection;
-        
-        inputFile.open(sceneFileName);
-
-        inputFile >> recursionLevel;
-        inputFile >> imageDimension;
-        inputFile >> totalObjects;
-
-        objects.reserve(totalObjects+1);
-        for (int i = 0; i < totalObjects; ++i) {
-            inputFile >> objectType;
-            //cout << "objectType: " << objectType << endl;
-            if(objectType == "sphere") {
-                inputFile >> referencePoint.x;
-                inputFile >> referencePoint.y;
-                inputFile >> referencePoint.z;
-                inputFile >> length;
-
-                inputFile >> color.r;
-                inputFile >> color.b;
-                inputFile >> color.g;
-
-                inputFile >> ambient;
-                inputFile >> diffuse;
-                inputFile >> specular;
-                inputFile >> recursiveReflection;
-
-                inputFile >> shine;
-                auto* obj = new Sphere(referencePoint, length);
-                obj->setType("sphere");
-                obj->setColor(color);
-                obj->setCoEfficients(ambient, diffuse, specular, recursiveReflection);
-                obj->setShine(shine);
-
-                //cout << obj->toString() << endl;
-                objects.push_back(obj);
-            }
-            else if(objectType == "triangle") {
-                Vector3D a, b, c;
-                inputFile >> a.x;
-                inputFile >> a.y;
-                inputFile >> a.z;
-                inputFile >> b.x;
-                inputFile >> b.y;
-                inputFile >> b.z;
-                inputFile >> c.x;
-                inputFile >> c.y;
-                inputFile >> c.z;
-
-                inputFile >> color.r;
-                inputFile >> color.b;
-                inputFile >> color.g;
-
-                inputFile >> ambient;
-                inputFile >> diffuse;
-                inputFile >> specular;
-                inputFile >> recursiveReflection;
-
-                inputFile >> shine;
-
-                auto* triangle = new Triangle(a, b, c);
-                triangle->setColor(color);
-                triangle->setCoEfficients(ambient, diffuse, specular, recursiveReflection);
-                triangle->setShine(shine);
-                triangle->setType("triangle");
-
-                //cout << triangle->toString() << endl;
-                objects.push_back(triangle);
-            }
-            else if(objectType == "general") {
-                auto* obj = new GeneralQuadraticSurface();
-                
-                inputFile >> obj->A;
-                inputFile >> obj->B;
-                inputFile >> obj->C;
-                inputFile >> obj->D;
-                inputFile >> obj->E;
-                inputFile >> obj->F;
-                inputFile >> obj->G;
-                inputFile >> obj->H;
-                inputFile >> obj->I;
-                inputFile >> obj->J;
-
-                inputFile >> obj->referencePoint.x;
-                inputFile >> obj->referencePoint.y;
-                inputFile >> obj->referencePoint.z;
-                inputFile >> obj->length;
-                inputFile >> obj->width;
-                inputFile >> obj->height;
-
-                inputFile >> color.r;
-                inputFile >> color.b;
-                inputFile >> color.g;
-
-                inputFile >> ambient;
-                inputFile >> diffuse;
-                inputFile >> specular;
-                inputFile >> recursiveReflection;
-
-                inputFile >> shine;
-
-                obj->setType("general");
-                obj->setColor(color);
-                obj->setCoEfficients(ambient, diffuse, specular, recursiveReflection);
-                obj->setShine(shine);
-
-                //cout << obj->toString() << endl;
-                objects.push_back(obj);
-            }
-        }
-
-        inputFile >> totalLights;
-        lights.reserve(totalLights);
-        for (int i = 0; i < totalLights; ++i) {
-            inputFile >> referencePoint.x;
-            inputFile >> referencePoint.y;
-            inputFile >> referencePoint.z;
-
-            inputFile >> color.r;
-            inputFile >> color.b;
-            inputFile >> color.g;
-
-            lights.push_back(new Light(referencePoint, color));
-        }
-
-        inputFile.close();
-
-        Floor* floor = new Floor(floorWidth, tileWidth);
-        floor->setType("floor");
-        floor->setShine(10);
-        floor->setCoEfficients(0.3, 0.0, 0.0, 0.0);
-        objects.push_back(floor);
-    }
-
-    void toString() {
-        cout << "objects: " << objects.size() << endl;
-        for (auto & object : objects) {
-            cout << object->toString() << endl;
-        }
-
-        cout << "lights: " << lights.size() << endl;
-        for (auto & light : lights) {
-            cout << light->toString() << endl;
-        }
-    }
-};

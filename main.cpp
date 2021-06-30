@@ -22,67 +22,174 @@ double angle;
 
 double rotate_angle;
 
-Data environmentData;
-
 struct point pos;
 struct point u, r, l;
 
-void drawAxes()
-{
-	if(drawaxes==1)
-	{
-		glColor3f(1.0, 1.0, 1.0);
-		glBegin(GL_LINES);{
-			glVertex3f( 700,0,0);
-			glVertex3f(-700,0,0);
+int recursionLevel, imageDimension;
+double floorWidth = 1000;
+double tileWidth = 20;
 
-			glVertex3f(0,-700,0);
-			glVertex3f(0, 700,0);
+vector<Object*> objects;
+vector<Light*> lights;
 
-			glVertex3f(0,0, 700);
-			glVertex3f(0,0,-700);
-		}glEnd();
-	}
-}
+void loadData(const string& sceneFileName) {
+    string objectType;
+    ifstream inputFile;
 
-void drawGrid()
-{
-	int i;
-	if(drawgrid==1)
-	{
-		glColor3f(0.6, 0.6, 0.6);	//grey
-		glBegin(GL_LINES);{
-			for(i=-8;i<=8;i++){
+    Color color;
+    Vector3D referencePoint;
 
-				if(i==0)
-					continue;	//SKIP the MAIN axes
+    int shine;
+	int totalObjects, totalLights;
+    double length;
+    double ambient, diffuse, specular, recursiveReflection;
+    
+    inputFile.open(sceneFileName);
 
-				//lines parallel to Y-axis
-				glVertex3f(i*10, -90, 0);
-				glVertex3f(i*10,  90, 0);
+    inputFile >> recursionLevel;
+    inputFile >> imageDimension;
+    inputFile >> totalObjects;
 
-				//lines parallel to X-axis
-				glVertex3f(-90, i*10, 0);
-				glVertex3f( 90, i*10, 0);
-			}
-		}glEnd();
-	}
+    objects.reserve(totalObjects+1);
+    for (int i = 0; i < totalObjects; ++i) {
+        inputFile >> objectType;
+        //cout << "objectType: " << objectType << endl;
+        if(objectType == "sphere") {
+            inputFile >> referencePoint.x;
+            inputFile >> referencePoint.y;
+            inputFile >> referencePoint.z;
+            inputFile >> length;
+
+            inputFile >> color.r;
+            inputFile >> color.g;
+            inputFile >> color.b;
+
+            inputFile >> ambient;
+            inputFile >> diffuse;
+            inputFile >> specular;
+            inputFile >> recursiveReflection;
+
+            inputFile >> shine;
+            auto* obj = new Sphere(referencePoint, length);
+            obj->setType("sphere");
+            obj->setColor(color);
+            obj->setCoEfficients(ambient, diffuse, specular, recursiveReflection);
+            obj->setShine(shine);
+
+            //cout << obj->toString() << endl;
+            objects.push_back(obj);
+        }
+        else if(objectType == "triangle") {
+            Vector3D a, b, c;
+            inputFile >> a.x;
+            inputFile >> a.y;
+            inputFile >> a.z;
+            inputFile >> b.x;
+            inputFile >> b.y;
+            inputFile >> b.z;
+            inputFile >> c.x;
+            inputFile >> c.y;
+            inputFile >> c.z;
+
+            inputFile >> color.r;
+            inputFile >> color.g;
+            inputFile >> color.b;
+
+            inputFile >> ambient;
+            inputFile >> diffuse;
+            inputFile >> specular;
+            inputFile >> recursiveReflection;
+
+            inputFile >> shine;
+
+            auto* triangle = new Triangle(a, b, c);
+            triangle->setColor(color);
+            triangle->setCoEfficients(ambient, diffuse, specular, recursiveReflection);
+            triangle->setShine(shine);
+            triangle->setType("triangle");
+
+            //cout << triangle->toString() << endl;
+            objects.push_back(triangle);
+        }
+        else if(objectType == "general") {
+            auto* obj = new GeneralQuadraticSurface();
+            
+            inputFile >> obj->A;
+            inputFile >> obj->B;
+            inputFile >> obj->C;
+            inputFile >> obj->D;
+            inputFile >> obj->E;
+            inputFile >> obj->F;
+            inputFile >> obj->G;
+            inputFile >> obj->H;
+            inputFile >> obj->I;
+            inputFile >> obj->J;
+
+            inputFile >> obj->referencePoint.x;
+            inputFile >> obj->referencePoint.y;
+            inputFile >> obj->referencePoint.z;
+            inputFile >> obj->length;
+            inputFile >> obj->width;
+            inputFile >> obj->height;
+
+            inputFile >> color.r;
+            inputFile >> color.g;
+            inputFile >> color.b;
+
+            inputFile >> ambient;
+            inputFile >> diffuse;
+            inputFile >> specular;
+            inputFile >> recursiveReflection;
+
+            inputFile >> shine;
+
+            obj->setType("general");
+            obj->setColor(color);
+            obj->setCoEfficients(ambient, diffuse, specular, recursiveReflection);
+            obj->setShine(shine);
+
+            //cout << obj->toString() << endl;
+            objects.push_back(obj);
+        }
+    }
+
+    inputFile >> totalLights;
+    lights.reserve(totalLights);
+    for (int i = 0; i < totalLights; ++i) {
+        inputFile >> referencePoint.x;
+        inputFile >> referencePoint.y;
+        inputFile >> referencePoint.z;
+
+        inputFile >> color.r;
+        inputFile >> color.g;
+        inputFile >> color.b;
+
+        lights.push_back(new Light(referencePoint, color));
+    }
+
+    inputFile.close();
+
+    Floor* floor = new Floor(floorWidth, tileWidth);
+    floor->setType("floor");
+    floor->setShine(10);
+    floor->setCoEfficients(0.3, 0.0, 0.0, 0.0);
+    objects.push_back(floor);
 }
 
 void drawStuff() {
-	for (auto & object : environmentData.objects) {
+	for (auto & object : objects) {
 		object->draw();
 	}
 
-	for (auto & light : environmentData.lights) {
+	for (auto & light : lights) {
 		light->draw();
 	}
 }
 
 void capture() {
-	bitmap_image image(environmentData.imageDimension, environmentData.imageDimension);
-    for(int i=0;i<environmentData.imageDimension;i++){
-        for(int j=0;j<environmentData.imageDimension;j++){
+	bitmap_image image(imageDimension, imageDimension);
+    for(int i=0;i<imageDimension;i++){
+        for(int j=0;j<imageDimension;j++){
             image.set_pixel(i,j, 0, 0, 0);
         }
     }
@@ -91,47 +198,38 @@ void capture() {
 	double windowWidth = 500;
 	double viewAngle = 80*(pi/180);
 	double planeDistance = (windowHeight/2.0) / tan(viewAngle/2.0);
+	
 	Vector3D eye(pos.x, pos.y, pos.z);
 	Vector3D look(l.x, l.y, l.z);
 	Vector3D right(r.x, r.y, r.z);
 	Vector3D up(u.x, u.y, u.z);
-	look.normalize();
-	right.normalize();
-	up.normalize();
 	
 	Vector3D topLeft = eye + look*planeDistance - right*(windowWidth/2.0) + up*(windowHeight/2.0);
 	
-	double du = windowWidth/environmentData.imageDimension;
-	double dv = windowHeight/environmentData.imageDimension;
+	double du = windowWidth/imageDimension;
+	double dv = windowHeight/imageDimension;
 
 	topLeft = topLeft + right*(du/2) - up*(dv/2);
 	//cout << "topLeft: " << topLeft.toString() << endl;
 
 	double t, t_min = 100000;
-	for(int i=0;i<environmentData.imageDimension;i++){
-        for(int j=0;j<environmentData.imageDimension;j++){
+	for(int i=0;i<imageDimension;i++){
+        for(int j=0;j<imageDimension;j++){
             Vector3D curPixel = topLeft + right*(du*i) - up*(dv*j);
 			Ray ray(eye, curPixel-eye);
 			
 			t_min = 10000000;
-			Object* nearestObj = nullptr;
 			Color color;
-			for (auto & object : environmentData.objects) {
+			Object* nearestObj = nullptr;
+			for (auto & object : objects) {
 				t = object->interset(ray, color, 0);
-				//if(i%100  == 0 && j%100 == 0) cout << "t: " << t << endl;
 				if(t > 0 && t < t_min) {
 					t_min = t;
 					nearestObj = object;
 					//if(object->type != "floor") cout << i << "," << j << " " << t << " " << object->type << "\n";
 				}
 			}
-			//cout << ss.str() << endl;
-			/*if(i%100 == 0 && j%100 == 0) {
-				cout << i << "," << j << endl;
-				cout << "ray: " << ray.toString() << endl; 
-				cout << "curPixel: " << curPixel.toString() << endl;
-			}*/
-
+			
 			if(nearestObj) {
 				//cout << "nearestObj: " << nearestObj->toString() << endl;
 				t_min = nearestObj->interset(ray, color, 1);
@@ -346,8 +444,8 @@ void display(){
 	****************************/
 	//add objects
 
-	drawAxes();
-	drawGrid();
+	//drawAxes();
+	//drawGrid();
 
 	drawStuff();
 	//ADD this line in the end --- if you use double buffer (i.e. GL_DOUBLE)
@@ -369,7 +467,7 @@ void init(){
 	angle=0;
 	rotate_angle=pi/10.0;
 
-	pos = {200, 150, 50};
+	pos = {100, 100, 70};
 	u = {0, 0, 1};
 	r = {-1.0/sqrt(2), 1.0/sqrt(2), 0};
 	l = {-1.0/sqrt(2), -1.0/sqrt(2), 0};
@@ -404,8 +502,8 @@ int main(int argc, char **argv){
 
 	string dir = "sample/";
     string sceneFileName = dir+"scene.txt";
-	environmentData.loadData(sceneFileName);
-	//environmentData.toString();
+	loadData(sceneFileName);
+	//toString();
 	init();
 
 	glEnable(GL_DEPTH_TEST);	//enable Depth Testing
