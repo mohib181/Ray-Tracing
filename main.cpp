@@ -172,8 +172,8 @@ void loadData(const string& sceneFileName) {
     Floor* floor = new Floor(floorWidth, tileWidth);
     floor->setType("floor");
     floor->setShine(10);
-    floor->setCoEfficients(0.3, 0.0, 0.0, 0.0);
-    objects.push_back(floor);
+    floor->setCoEfficients(0.4, 0.2, 0.2, 0.2);
+	objects.push_back(floor);
 }
 
 void drawStuff() {
@@ -222,7 +222,7 @@ void capture() {
 			Color color;
 			Object* nearestObj = nullptr;
 			for (auto & object : objects) {
-				t = object->interset(ray, color, 0);
+				t = object->intersect(ray, color, 0);
 				if(t > 0 && t < t_min) {
 					t_min = t;
 					nearestObj = object;
@@ -232,7 +232,7 @@ void capture() {
 			
 			if(nearestObj) {
 				//cout << "nearestObj: " << nearestObj->toString() << endl;
-				t_min = nearestObj->interset(ray, color, 1);
+				t_min = nearestObj->intersect(ray, color, 1);
 				image.set_pixel(i,j, color.r*255, color.g*255, color.b*255);
 			}
         }
@@ -467,7 +467,7 @@ void init(){
 	angle=0;
 	rotate_angle=pi/10.0;
 
-	pos = {100, 100, 70};
+	pos = {100, 100, 50};
 	u = {0, 0, 1};
 	r = {-1.0/sqrt(2), 1.0/sqrt(2), 0};
 	l = {-1.0/sqrt(2), -1.0/sqrt(2), 0};

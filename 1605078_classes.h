@@ -10,7 +10,7 @@
 #define AMB 0
 #define DIFF 1
 #define SPEC 2
-#define REF 4
+#define REF 3
 
 using namespace std;
 
@@ -160,11 +160,19 @@ public:
     Color(double r, double g, double b) : r(r), g(g), b(b) {}
 
     Color operator + (const Color &c) const {
-        double r = r + c.r;
-        double g = g + c.g;
-        double b = b + c.b;
+        double red = min(r + c.r, 1.0);
+        double green = min(g + c.g, 1.0);
+        double blue = min(b + c.b, 1.0);
 
-        return Color(r, g, b);
+        return Color(red, green, blue);
+    }
+
+    Color operator * (const Color &c) const {
+        double red = min(r*c.r, 1.0);
+        double green = min(g*c.g, 1.0);
+        double blue = min(b*c.b, 1.0);
+
+        return Color(red, green, blue);
     }
 
     template <typename T>
@@ -230,7 +238,7 @@ public:
                                                                                          length(length) {}
 
     virtual void draw() {}
-    virtual double interset(const Ray &ray, Color &color, int level) {
+    virtual double intersect(const Ray &ray, Color &color, int level) {
         return -1;
     }
 
@@ -271,30 +279,39 @@ extern vector<Object*> objects;
 extern vector<Light*> lights;
 
 void getRayColor(const Light* light, const Ray & ray, const Vector3D &intersectingPoint, const Vector3D &normal, const double coEfficients[], double shine, Color &color) {
-    Ray lightRay(light->position, intersectingPoint-light->position);
-    double distance = intersectingPoint.calculateDistance(light->position);
-    
+    Vector3D dir = light->position-intersectingPoint;
+    dir.normalize();
+    Vector3D start = intersectingPoint + dir;
+    Ray lightRay(start, dir);
+    double distance = start.calculateDistance(light->position);
     double t;
     bool inShadow = false;
     Color dummyColor;
     for (auto & object : objects) {
-        t = object->interset(lightRay, dummyColor, 0);
+        t = object->intersect(lightRay, dummyColor, 0);
         if(t > 0 && t < distance) {
             inShadow = true;
             break;
         }
     }
 
-    //cout << light->toString() << "->" << inShadow << endl;
+    //cout << intersectingPoint.toString() << "->" << inShadow << endl;
     if(!inShadow) {
-        Vector3D reflectedRay = normal*(2*normal.dotProduct(lightRay.dir)) - lightRay.dir;
+        Vector3D reflectedRay = normal*(normal.dotProduct(lightRay.dir)*2) - lightRay.dir;
         reflectedRay.normalize();
 
         //cout << normal.toString() << "\n" << reflectedRay.toString() << endl;
 
         double lambertValue = max(normal.dotProduct(lightRay.dir), 0.0);
         double phongValue = max(reflectedRay.dotProduct(ray.dir), 0.0);
-        color = color + light->color*lambertValue*coEfficients[DIFF] + light->color*pow(phongValue, shine)*coEfficients[SPEC];
+        //cout << lambertValue << " " << phongValue << endl;
+        
+        Color lambertColor = light->color*color*lambertValue*coEfficients[DIFF];
+        Color phongColor = light->color*color*pow(phongValue, shine)*coEfficients[SPEC];
+
+        //cout << phongColor.toString() << endl;
+
+        color = color + lambertColor + phongColor;  
     }
 }
 
@@ -310,7 +327,7 @@ public:
         }glPopMatrix();
     }
 
-    double interset(const Ray &ray, Color &color, int level) override {
+    double intersect(const Ray &ray, Color &color, int level) override {
         //return -1;
         Vector3D v = ray.start-referencePoint;
         double a = 1;
@@ -340,32 +357,7 @@ public:
             color = Sphere::color*coEfficients[AMB];
 
             for(auto& light: lights) {
-                //getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
-                /*Ray lightRay(light->position, intersectingPoint-light->position);
-                double distance = intersectingPoint.calculateDistance(light->position);
-                
-                double t;
-                bool inShadow = false;
-                Color dummyColor;
-                for (auto & object : objects) {
-                    t = object->interset(lightRay, dummyColor, 0);
-                    if(t > 0 && t < distance) {
-                        inShadow = true;
-                        break;
-                    }
-                }
-
-                //cout << light->toString() << "->" << inShadow << endl;
-                if(!inShadow) {
-                    Vector3D reflectedRay = normal*(2*normal.dotProduct(lightRay.dir)) - lightRay.dir;
-                    reflectedRay.normalize();
-
-                    //cout << normal.toString() << "\n" << reflectedRay.toString() << endl;
-
-                    double lambertValue = max(normal.dotProduct(lightRay.dir), 0.0);
-                    double phongValue = max(reflectedRay.dotProduct(ray.dir), 0.0);
-                    color = color + light->color*lambertValue*coEfficients[DIFF] + light->color*pow(phongValue, shine)*coEfficients[SPEC];
-                }*/
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
             }
 
             return retValue;
@@ -388,11 +380,7 @@ public:
         }glPopMatrix();
     }
 
-    Vector3D getNormal(const Vector3D& intersectingPoint) {
-        return Vector3D(0, 0, 1);
-    }
-
-    double interset(const Ray &ray, Color &color, int level) override {
+    double intersect(const Ray &ray, Color &color, int level) override {
         //return -1;
         const double EPSILON = 0.0000001;
         Vector3D edge1, edge2, h, s, q;
@@ -420,7 +408,8 @@ public:
             if(level == 0) return t;
 
             Vector3D intersectingPoint = ray.start + ray.dir*t;
-            Vector3D normal = getNormal(intersectingPoint);
+            Vector3D normal = edge1.crossProduct(edge2);
+            normal.normalize();
             //cout << intersectingPoint.toString() << endl;
 
             color.r = Triangle::color.r*coEfficients[AMB];
@@ -428,7 +417,7 @@ public:
             color.b = Triangle::color.b*coEfficients[AMB];
 
             for(auto& light: lights) {
-                //getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
             }
 
 
@@ -458,10 +447,23 @@ public:
     void draw() override {}
 
     Vector3D getNormal(const Vector3D& intersectingPoint) {
-        return Vector3D(0, 0, 1);
+        double x = 2*A*intersectingPoint.x+
+                    D*intersectingPoint.y+
+                    E*intersectingPoint.z+
+                    G;
+        double y = 2*B*intersectingPoint.y+
+                    D*intersectingPoint.x+
+                    F*intersectingPoint.z+
+                    H;
+        double z = 2*C*intersectingPoint.z+
+                    E*intersectingPoint.x+
+                    F*intersectingPoint.y+
+                    I;
+
+        return Vector3D(x, y, z);                    
     }
 
-    double interset(const Ray &ray, Color &color, int level) override {
+    double intersect(const Ray &ray, Color &color, int level) override {
         //return -1;
         double retValue = -1;
         double a = A*ray.dir.x*ray.dir.x + 
@@ -513,7 +515,7 @@ public:
             color.b = GeneralQuadraticSurface::color.b*coEfficients[AMB];
 
             for(auto& light: lights) {
-                //getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
             }
 
             return retValue;
@@ -540,7 +542,7 @@ public:
         }
     }
 
-    double interset(const Ray &ray, Color &color, int level) override {
+    double intersect(const Ray &ray, Color &color, int level) override {
         //return -1;
         Vector3D n(0, 0, 1);
         double retValue = -1;
@@ -575,32 +577,7 @@ public:
 
             Vector3D normal(0, 0, 1);
             for(auto& light: lights) {
-                //getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
-                /*Ray lightRay(light->position, intersectingPoint-light->position);
-                double distance = intersectingPoint.calculateDistance(light->position);
-                
-                double t;
-                bool inShadow = false;
-                Color dummyColor;
-                for (auto & object : objects) {
-                    t = object->interset(lightRay, dummyColor, 0);
-                    if(t > 0 && t < distance) {
-                        inShadow = true;
-                        break;
-                    }
-                }
-
-                //cout << light->toString() << "->" << inShadow << endl;
-                if(!inShadow) {
-                    Vector3D reflectedRay = normal*(2*normal.dotProduct(lightRay.dir)) - lightRay.dir;
-                    reflectedRay.normalize();
-
-                    //cout << normal.toString() << "\n" << reflectedRay.toString() << endl;
-
-                    double lambertValue = max(normal.dotProduct(lightRay.dir), 0.0);
-                    double phongValue = max(reflectedRay.dotProduct(ray.dir), 0.0);
-                    color = color + light->color*lambertValue*coEfficients[DIFF] + light->color*pow(phongValue, shine)*coEfficients[SPEC];
-                }*/
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
             }
             return retValue;
         }
