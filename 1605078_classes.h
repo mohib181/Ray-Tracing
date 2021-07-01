@@ -315,6 +315,31 @@ void getRayColor(const Light* light, const Ray & ray, const Vector3D &intersecti
     }
 }
 
+void getRecursionColor(const Ray &ray, const Vector3D &intersectionPoint, const Vector3D &normal, double refConstant, int level, Color &color) {
+    if(level < recursionLevel) {
+        Vector3D reflectionDir = ray.dir - normal*(normal.dotProduct(ray.dir)*2);
+        Vector3D start = intersectionPoint + reflectionDir;
+        Ray reflectionRay(start, reflectionDir);
+
+        double t, t_min = 10000000;
+        Color reflectedColor;
+        Object* nearestObj = nullptr;
+        for (auto & object : objects) {
+            t = object->intersect(reflectionRay, reflectedColor, 0);
+            if(t > 0 && t < t_min) {
+                t_min = t;
+                nearestObj = object;
+            }
+        }
+
+        if(nearestObj) {
+            //cout << "nearestObj: " << nearestObj->toString() << endl;
+            t_min = nearestObj->intersect(reflectionRay, reflectedColor, level+1);
+            color = color + reflectedColor*refConstant;
+        }
+    }
+}
+
 class Sphere: public Object{
 public:
     Sphere(const Vector3D &referencePoint, double length) : Object(referencePoint, length) {}
@@ -360,6 +385,9 @@ public:
                 getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
             }
 
+            //cout << "before: " << color.toString() << endl;
+            getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
+            //cout << "after: " << color.toString() << endl;
             return retValue;
         }
     }
@@ -420,6 +448,7 @@ public:
                 getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
             }
 
+            getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
 
             return t;
         }
@@ -518,6 +547,8 @@ public:
                 getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
             }
 
+            getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
+
             return retValue;
         }
     }
@@ -579,6 +610,8 @@ public:
             for(auto& light: lights) {
                 getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
             }
+            getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
+            
             return retValue;
         }
     }
