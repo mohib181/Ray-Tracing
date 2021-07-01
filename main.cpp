@@ -467,10 +467,10 @@ void init(){
 	angle=0;
 	rotate_angle=pi/10.0;
 
-	pos = {100, 100, 50};
+	pos = {25, -75, 50};
 	u = {0, 0, 1};
-	r = {-1.0/sqrt(2), 1.0/sqrt(2), 0};
-	l = {-1.0/sqrt(2), -1.0/sqrt(2), 0};
+	r = {1.0/sqrt(2), 1.0/sqrt(2), 0};
+	l = {-1.0/sqrt(2), 1.0/sqrt(2), 0};
 
 	//clear the screen
 	glClearColor(0,0,0,0);

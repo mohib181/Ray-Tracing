@@ -278,7 +278,7 @@ public:
 extern vector<Object*> objects;
 extern vector<Light*> lights;
 
-void getRayColor(const Light* light, const Ray & ray, const Vector3D &intersectingPoint, const Vector3D &normal, const double coEfficients[], double shine, Color &color) {
+void getRayColor(const Light* light, const Ray & ray, const Vector3D &intersectingPoint, const Vector3D &normal, double diffConstant, double specConstant, double shine, Color &color) {
     Vector3D dir = light->position-intersectingPoint;
     dir.normalize();
     Vector3D start = intersectingPoint + dir;
@@ -306,8 +306,8 @@ void getRayColor(const Light* light, const Ray & ray, const Vector3D &intersecti
         double phongValue = max(reflectedRay.dotProduct(ray.dir), 0.0);
         //cout << lambertValue << " " << phongValue << endl;
         
-        Color lambertColor = light->color*color*lambertValue*coEfficients[DIFF];
-        Color phongColor = light->color*color*pow(phongValue, shine)*coEfficients[SPEC];
+        Color lambertColor = light->color*color*lambertValue*diffConstant;
+        Color phongColor = light->color*color*pow(phongValue, shine)*specConstant;
 
         //cout << phongColor.toString() << endl;
 
@@ -318,6 +318,8 @@ void getRayColor(const Light* light, const Ray & ray, const Vector3D &intersecti
 void getRecursionColor(const Ray &ray, const Vector3D &intersectionPoint, const Vector3D &normal, double refConstant, int level, Color &color) {
     if(level < recursionLevel) {
         Vector3D reflectionDir = ray.dir - normal*(normal.dotProduct(ray.dir)*2);
+        reflectionDir.normalize();
+        
         Vector3D start = intersectionPoint + reflectionDir;
         Ray reflectionRay(start, reflectionDir);
 
@@ -382,7 +384,7 @@ public:
             color = Sphere::color*coEfficients[AMB];
 
             for(auto& light: lights) {
-                getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, color);
             }
 
             //cout << "before: " << color.toString() << endl;
@@ -445,7 +447,7 @@ public:
             color.b = Triangle::color.b*coEfficients[AMB];
 
             for(auto& light: lights) {
-                getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, color);
             }
 
             getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
@@ -544,7 +546,7 @@ public:
             color.b = GeneralQuadraticSurface::color.b*coEfficients[AMB];
 
             for(auto& light: lights) {
-                getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, color);
             }
 
             getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
@@ -608,7 +610,7 @@ public:
 
             Vector3D normal(0, 0, 1);
             for(auto& light: lights) {
-                getRayColor(light, ray, intersectingPoint, normal, coEfficients, shine, color);
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, color);
             }
             getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
             
