@@ -160,17 +160,17 @@ public:
     Color(double r, double g, double b) : r(r), g(g), b(b) {}
 
     Color operator + (const Color &c) const {
-        double red = min(r + c.r, 1.0);
-        double green = min(g + c.g, 1.0);
-        double blue = min(b + c.b, 1.0);
+        double red = min(this->r + c.r, 1.0);
+        double green = min(this->g + c.g, 1.0);
+        double blue = min(this->b + c.b, 1.0);
 
         return Color(red, green, blue);
     }
 
     Color operator * (const Color &c) const {
-        double red = min(r*c.r, 1.0);
-        double green = min(g*c.g, 1.0);
-        double blue = min(b*c.b, 1.0);
+        double red = min(this->r*c.r, 1.0);
+        double green = min(this->g*c.g, 1.0);
+        double blue = min(this->b*c.b, 1.0);
 
         return Color(red, green, blue);
     }
@@ -278,18 +278,20 @@ public:
 extern vector<Object*> objects;
 extern vector<Light*> lights;
 
-void getRayColor(const Light* light, const Ray & ray, const Vector3D &intersectingPoint, const Vector3D &normal, double diffConstant, double specConstant, double shine, Color &color) {
+void getRayColor(const Light* light, const Ray & ray, const Vector3D &intersectingPoint, const Vector3D &normal, double diffConstant, double specConstant, double shine, const Color &objectColor, Color &color) {
     Vector3D dir = light->position-intersectingPoint;
     dir.normalize();
-    Vector3D start = intersectingPoint + dir;
+    
+    Vector3D start = intersectingPoint + dir*1;
     Ray lightRay(start, dir);
+    
     double distance = start.calculateDistance(light->position);
     double t;
     bool inShadow = false;
     Color dummyColor;
     for (auto & object : objects) {
         t = object->intersect(lightRay, dummyColor, 0);
-        if(t > 0 && t < distance) {
+        if(t > 0) {
             inShadow = true;
             break;
         }
@@ -297,21 +299,21 @@ void getRayColor(const Light* light, const Ray & ray, const Vector3D &intersecti
 
     //cout << intersectingPoint.toString() << "->" << inShadow << endl;
     if(!inShadow) {
-        Vector3D reflectedRay = normal*(normal.dotProduct(lightRay.dir)*2) - lightRay.dir;
+        Vector3D reflectedRay = ray.dir - normal*(normal.dotProduct(ray.dir)*2);
         reflectedRay.normalize();
 
         //cout << normal.toString() << "\n" << reflectedRay.toString() << endl;
 
         double lambertValue = max(normal.dotProduct(lightRay.dir), 0.0);
         double phongValue = max(reflectedRay.dotProduct(ray.dir), 0.0);
-        //cout << lambertValue << " " << phongValue << endl;
+        //cout << lambertValue << " " << phongValue << " diff " << diffConstant << " spec: " << specConstant << endl;
         
-        Color lambertColor = light->color*color*lambertValue*diffConstant;
-        Color phongColor = light->color*color*pow(phongValue, shine)*specConstant;
+        Color lambertColor = light->color*objectColor*lambertValue*diffConstant;
+        Color phongColor = light->color*objectColor*pow(phongValue, shine)*specConstant;
 
-        //cout << phongColor.toString() << endl;
+        //cout << lambertColor.toString() << " " << phongColor.toString() << endl;
 
-        color = color + lambertColor + phongColor;  
+        color = color + lambertColor + phongColor; 
     }
 }
 
@@ -320,7 +322,7 @@ void getRecursionColor(const Ray &ray, const Vector3D &intersectionPoint, const 
         Vector3D reflectionDir = ray.dir - normal*(normal.dotProduct(ray.dir)*2);
         reflectionDir.normalize();
         
-        Vector3D start = intersectionPoint + reflectionDir;
+        Vector3D start = intersectionPoint + reflectionDir*1;
         Ray reflectionRay(start, reflectionDir);
 
         double t, t_min = 10000000;
@@ -376,20 +378,18 @@ public:
         //if(det >= 0) cout << "retValue: " << retValue << " det: " << det << endl;
         if(level == 0) return retValue;
         else {
-            Vector3D intersectingPoint = ray.start-referencePoint + ray.dir*retValue;
+            Vector3D intersectingPoint = ray.start + ray.dir*retValue;
             //cout << intersectingPoint.toString() << endl;
             Vector3D normal = intersectingPoint - referencePoint;
             normal.normalize();
 
-            color = Sphere::color*coEfficients[AMB];
-
+            color = this->color*coEfficients[AMB];
+            //cout << "before ray: " << color.toString() << endl;
             for(auto& light: lights) {
-                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, color);
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, this->color, color);
             }
-
-            //cout << "before: " << color.toString() << endl;
+            //cout << "after ray: " << color.toString() << endl;
             getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
-            //cout << "after: " << color.toString() << endl;
             return retValue;
         }
     }
@@ -447,7 +447,7 @@ public:
             color.b = Triangle::color.b*coEfficients[AMB];
 
             for(auto& light: lights) {
-                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, color);
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine,this->color, color);
             }
 
             getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
@@ -468,9 +468,9 @@ public:
         double y = ray.start.y + ray.dir.y*t;
         double z = ray.start.z + ray.dir.z*t;
 
-        if(length > 0 && x > length) return false;
-        if(width > 0 && y > width) return false;
-        if(height > 0 && z > height) return false;
+        if(length > 0 && (x > length || x < -length)) return false;
+        if(width > 0 && (y > width || y < -width)) return false;
+        if(height > 0 && (z > height || z < -height)) return false;
 
         return true;
     }
@@ -546,7 +546,7 @@ public:
             color.b = GeneralQuadraticSurface::color.b*coEfficients[AMB];
 
             for(auto& light: lights) {
-                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, color);
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, this->color, color);
             }
 
             getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
@@ -596,21 +596,23 @@ public:
 
             int i = floorPoint.x/tileWidth;
             int j = floorPoint.y/tileWidth;
+            Color floorColor;
             
             if((i+j)%2) {
-                color.r = 1*coEfficients[AMB];
-                color.g = 1*coEfficients[AMB];
-                color.b = 1*coEfficients[AMB];
+                floorColor.r = 1;
+                floorColor.g = 1;
+                floorColor.b = 1;
             }
             else {
-                color.r = 0*coEfficients[AMB];
-                color.g = 0*coEfficients[AMB];
-                color.b = 0*coEfficients[AMB];
+                floorColor.r = 0;
+                floorColor.g = 0;
+                floorColor.b = 0;
             }
+            color = floorColor*coEfficients[AMB];
 
             Vector3D normal(0, 0, 1);
             for(auto& light: lights) {
-                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, color);
+                getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, floorColor, color);
             }
             getRecursionColor(ray, intersectingPoint, normal, coEfficients[REF], level, color);
             
