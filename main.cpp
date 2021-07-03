@@ -467,7 +467,7 @@ void init(){
 	angle=0;
 	rotate_angle=pi/10.0;
 
-	pos = {120, 120, 20};
+	pos = {90, -90, 50};
 	u = {0, 0, 1};
 	r = {1.0/sqrt(2), 1.0/sqrt(2), 0};
 	l = {-1.0/sqrt(2), 1.0/sqrt(2), 0};

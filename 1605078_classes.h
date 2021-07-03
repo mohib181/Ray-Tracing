@@ -291,7 +291,7 @@ void getRayColor(const Light* light, const Ray & ray, const Vector3D &intersecti
     Color dummyColor;
     for (auto & object : objects) {
         t = object->intersect(lightRay, dummyColor, 0);
-        if(t > 0) {
+        if(t > 0 && t < distance) {
             inShadow = true;
             break;
         }
@@ -464,13 +464,11 @@ public:
     GeneralQuadraticSurface() {}
 
     bool boundaryCheck(const Ray &ray, double t) {
-        double x = ray.start.x + ray.dir.x*t;
-        double y = ray.start.y + ray.dir.y*t;
-        double z = ray.start.z + ray.dir.z*t;
+        Vector3D intersectingPoint = ray.start + ray.dir*t;
 
-        if(length > 0 && (x > length || x < -length)) return false;
-        if(width > 0 && (y > width || y < -width)) return false;
-        if(height > 0 && (z > height || z < -height)) return false;
+        if(length > 0 && (intersectingPoint.x < referencePoint.x || intersectingPoint.x > referencePoint.x+length)) return false;
+        if(width > 0 && (intersectingPoint.y < referencePoint.y || intersectingPoint.y > referencePoint.y+width)) return false;
+        if(height > 0 && (intersectingPoint.z < referencePoint.z || intersectingPoint.z > referencePoint.z+height)) return false;
 
         return true;
     }
@@ -534,6 +532,7 @@ public:
 
             if(boundaryCheck(ray, min(t1, t2))) retValue = min(t1, t2);
             if(retValue < 0 && boundaryCheck(ray, max(t1, t2))) retValue = max(t1, t2);
+            if(retValue < 0) return -1;
         }
 
         if(level == 0) return retValue;
