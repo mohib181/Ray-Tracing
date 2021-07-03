@@ -25,6 +25,9 @@ double rotate_angle;
 struct point pos;
 struct point u, r, l;
 
+string dir = "sample/";
+string sceneFileName = dir+"scene.txt";	
+string imageFileName = "out.bmp";
 int recursionLevel, imageDimension;
 double floorWidth = 1000;
 double tileWidth = 20;
@@ -226,7 +229,6 @@ void capture() {
 				if(t > 0 && t < t_min) {
 					t_min = t;
 					nearestObj = object;
-					//if(object->type != "floor") cout << i << "," << j << " " << t << " " << object->type << "\n";
 				}
 			}
 			
@@ -238,7 +240,7 @@ void capture() {
         }
     }
 	//cout << "out of loop" << endl;
-	image.save_image("out.bmp");
+	image.save_image(imageFileName);
 						   
 }
 
@@ -467,7 +469,7 @@ void init(){
 	angle=0;
 	rotate_angle=pi/10.0;
 
-	pos = {90, -90, 50};
+	pos = {70, -70, 50};
 	u = {0, 0, 1};
 	r = {1.0/sqrt(2), 1.0/sqrt(2), 0};
 	l = {-1.0/sqrt(2), 1.0/sqrt(2), 0};
@@ -500,8 +502,6 @@ int main(int argc, char **argv){
 
 	glutCreateWindow("Ray Tracing Field");
 
-	string dir = "sample/";
-    string sceneFileName = dir+"scene.txt";
 	loadData(sceneFileName);
 	//toString();
 	init();

@@ -365,7 +365,7 @@ public:
         double det = b*b - c;
         double retValue = -1;
         
-        if(det < 0) retValue = -1;
+        if(det < 0) return -1;
         else if(det == 0) retValue = -b;
         else {
             double t1 = -b-sqrt(det);
@@ -373,7 +373,7 @@ public:
             retValue = min(t1, t2);
 
             if(retValue < 0) retValue = max(t1, t2);
-            if(retValue < 0) retValue = -1;
+            if(retValue < 0) return -1;
         }
         //if(det >= 0) cout << "retValue: " << retValue << " det: " << det << endl;
         if(level == 0) return retValue;
@@ -442,9 +442,7 @@ public:
             normal.normalize();
             //cout << intersectingPoint.toString() << endl;
 
-            color.r = Triangle::color.r*coEfficients[AMB];
-            color.g = Triangle::color.g*coEfficients[AMB];
-            color.b = Triangle::color.b*coEfficients[AMB];
+            color = this->color*coEfficients[AMB];
 
             for(auto& light: lights) {
                 getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine,this->color, color);
@@ -524,7 +522,7 @@ public:
 
         double det = b*b-4*a*c;
 
-        if(det < 0) retValue = -1;
+        if(det < 0) return -1;
         else if(det == 0) retValue = -b/(2*a);
         else {
             double t1 = (-b-sqrt(det))/(2*a);
@@ -539,10 +537,9 @@ public:
         else {
             Vector3D intersectingPoint = ray.start + ray.dir*retValue;
             Vector3D normal = getNormal(intersectingPoint);
+            normal.normalize();
             
-            color.r = GeneralQuadraticSurface::color.r*coEfficients[AMB];
-            color.g = GeneralQuadraticSurface::color.g*coEfficients[AMB];
-            color.b = GeneralQuadraticSurface::color.b*coEfficients[AMB];
+            color = this->color*coEfficients[AMB];
 
             for(auto& light: lights) {
                 getRayColor(light, ray, intersectingPoint, normal, coEfficients[DIFF], coEfficients[SPEC], shine, this->color, color);
